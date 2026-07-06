@@ -1,0 +1,42 @@
+trigger:
+  branches:
+    include: -main
+
+pool:
+  vmImage: "ubuntu-latest"
+
+variables:
+  resourceGroupName: "rg-fab-day01"
+  location: "southafricanorth"
+  azureServiceConnection: "fabrikam-service-connection"
+
+stages:
+  -stage: Deploy
+  displayName: "Deploy Bicep to rg-fab-day01"
+  jobs: DeployInfra
+  displayName: "Deploy App Service Plan + Web App"
+  steps:
+
+  -task: AzureCLI@2
+  displayName: 'Ensure resource group exists'
+  inputs: 
+    azureSubscription: '$(azureServiceConnection)'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript:  |
+    az group create \
+    --name $(resourceGroupName) \
+    --location $(location)
+
+   -task : AzureCLI@2
+   displayName : 'Deploy Bicep Template'
+   inputs: 
+   azureSubscription : '$(azureServiceConnection)'
+   scriptType: 'bash'
+   inlineScript: |
+   az deployment group create \
+   --resourceGroup : $(resourceGroup)
+   --template-file $(bicepFile)
+   --name deploy-$(Build.BuildId)
+
+
