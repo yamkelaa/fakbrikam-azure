@@ -1,42 +1,75 @@
+# =========================================================
+# azure-pipelines.yml
+# Purpose: automatically deploy main.bicep every time someone
+# pushes a commit to the "main" branch.
+# =========================================================
+
+# ---- TRIGGER ----
+# This tells Azure DevOps WHEN to run this pipeline.
+# Here: run automatically on every push to "main".
+# If you pushed to "develop" or a "feature/*" branch instead,
+# this pipeline would NOT run (by design — only main triggers deploys).
 trigger:
   branches:
-    include: -main
+    include:
+      - main
 
+# ---- AGENT POOL ----
+# The pipeline needs a machine to actually run on.
+# 'ubuntu-latest' = Microsoft-hosted Linux VM, spun up fresh for each run,
+# already has Azure CLI installed, so no extra setup needed.
 pool:
   vmImage: "ubuntu-latest"
 
+# ---- VARIABLES ----
+# Reusable values referenced throughout the pipeline using $(variableName).
+# Centralizing them here means you only change them in one place.
 variables:
-  resourceGroupName: "rg-fab-day01"
-  location: "southafricanorth"
-  azureServiceConnection: "fabrikam-service-connection"
+  resourceGroupName: "rg-fab-day01" # target resource group for deployment
+  location: "eastus" # Azure region to create the RG in if missing
+  bicepFile: "main.bicep" # path to the Bicep template to deploy
+  azureServiceConnection: "fabrikam-azure-connection"
+  # ^ This must match the name of a Service Connection you create in
+  # Azure DevOps (Project Settings > Service connections). That connection
+  # holds the credentials Azure DevOps uses to log into your Azure subscription.
 
+# ---- STAGES ----
+# Stages group related jobs together. We only have one stage here: "Deploy".
 stages:
-  -stage: Deploy
-  displayName: "Deploy Bicep to rg-fab-day01"
-  jobs: DeployInfra
-  displayName: "Deploy App Service Plan + Web App"
-  steps:
+  - stage: Deploy
+    displayName: "Deploy Bicep to rg-fab-day01"
+    jobs:
+      - job: DeployInfra
+        displayName: "Deploy App Service Plan + Web App"
+        steps:
+          # STEP 1: Make sure the resource group exists.
+          # 'az group create' is safe to run even if the RG already exists —
+          # it just confirms/updates it rather than failing.
+          - task: AzureCLI@2
+            displayName: "Ensure resource group exists"
+            inputs:
+              azureSubscription: "$(azureServiceConnection)" # uses the service connection above to authenticate
+              scriptType: "bash"
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                az group create \
+                  --name $(resourceGroupName) \
+                  --location $(location)
 
-  -task: AzureCLI@2
-  displayName: 'Ensure resource group exists'
-  inputs: 
-    azureSubscription: '$(azureServiceConnection)'
-    scriptType: 'bash'
-    scriptLocation: 'inlineScript'
-    inlineScript:  |
-    az group create \
-    --name $(resourceGroupName) \
-    --location $(location)
-
-   -task : AzureCLI@2
-   displayName : 'Deploy Bicep Template'
-   inputs: 
-   azureSubscription : '$(azureServiceConnection)'
-   scriptType: 'bash'
-   inlineScript: |
-   az deployment group create \
-   --resourceGroup : $(resourceGroup)
-   --template-file $(bicepFile)
-   --name deploy-$(Build.BuildId)
-
-
+          # STEP 2: Deploy the actual Bicep template into that resource group.
+          # 'az deployment group create' reads main.bicep and creates/updates
+          # the App Service Plan + Web App resources defined inside it.
+          - task: AzureCLI@2
+            displayName: "Deploy Bicep template"
+            inputs:
+              azureSubscription: "$(azureServiceConnection)"
+              scriptType: "bash"
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                az deployment group create \
+                  --resource-group $(resourceGroupName) \
+                  --template-file $(bicepFile) \
+                  --name deploy-$(Build.BuildId)
+                  # Build.BuildId is an automatic Azure DevOps variable —
+                  # it's a unique number for each pipeline run, so every
+                  # deployment gets a distinct, traceable name.
