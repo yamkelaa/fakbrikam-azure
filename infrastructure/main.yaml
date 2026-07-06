@@ -26,13 +26,14 @@ pool:
 # Centralizing them here means you only change them in one place.
 variables:
   resourceGroupName: "rg-fab-day01" # target resource group for deployment
-  location: "westeurpoe" # Azure region to create the RG in if missing
+  location: "westeurope" # Azure region to create the RG in if missing
   bicepFile: "infrastructure/main.bicep" # path to the Bicep template to deploy
   azureServiceConnection: "fabrikam-service-connection"
   # ^ This must match the name of a Service Connection you create in
   # Azure DevOps (Project Settings > Service connections). That connection
   # holds the credentials Azure DevOps uses to log into your Azure subscription.
 
+  #commit
 # ---- STAGES ----
 # Stages group related jobs together. We only have one stage here: "Deploy".
 stages:
