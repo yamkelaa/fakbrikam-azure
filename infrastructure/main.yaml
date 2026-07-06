@@ -26,7 +26,7 @@ pool:
 # Centralizing them here means you only change them in one place.
 variables:
   resourceGroupName: "rg-fab-day01" # target resource group for deployment
-  location: "southafricanorth" # Azure region to create the RG in if missing
+  location: "westeurpoe" # Azure region to create the RG in if missing
   bicepFile: "infrastructure/main.bicep" # path to the Bicep template to deploy
   azureServiceConnection: "fabrikam-service-connection"
   # ^ This must match the name of a Service Connection you create in
